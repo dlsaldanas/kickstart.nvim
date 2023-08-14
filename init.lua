@@ -271,6 +271,10 @@ vim.keymap.set({ 'n', 'v' }, '<Space>', '<Nop>', { silent = true })
 vim.keymap.set('n', 'k', "v:count == 0 ? 'gk' : 'k'", { expr = true, silent = true })
 vim.keymap.set('n', 'j', "v:count == 0 ? 'gj' : 'j'", { expr = true, silent = true })
 
+-- copy current buffer path to "+
+-- vim.keymap.set('n', '<leader>yb', '<cmd>let @+ = ' .. expand('%') .. '<cr>', {expr = true})
+vim.keymap.set('n', '<leader>yb', '<cmd>let @+ = expand("%")<CR>', { desc = 'yank to plus register current relative path' })
+
 -- [[ Highlight on yank ]]
 -- See `:help vim.highlight.on_yank()`
 local highlight_group = vim.api.nvim_create_augroup('YankHighlight', { clear = true })
@@ -418,7 +422,7 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 
 -- [[ Configure LSP ]]
 -- https://github.com/neovim/nvim-lspconfig/wiki/UI-Customization
-local function goto_definition(split_cmd)
+local function goto_definition()
   local util = vim.lsp.util
   local log = require("vim.lsp.log")
   local api = vim.api
@@ -430,27 +434,23 @@ local function goto_definition(split_cmd)
       return nil
     end
 
-    if split_cmd then
-      vim.cmd(split_cmd)
-    end
-
     if vim.tbl_islist(result) then
-      util.jump_to_location(result[1])
+      util.jump_to_location(result[1], "utf-8", true)
 
       if #result > 1 then
-        util.set_qflist(util.locations_to_items(result))
+        vim.diagnostic.setqflist(util.locations_to_items(result, "utf-8"))
         api.nvim_command("copen")
         api.nvim_command("wincmd p")
       end
     else
-      util.jump_to_location(result)
+      util.jump_to_location(result, "utf-8", true)
     end
   end
 
   return handler
 end
 
-vim.lsp.handlers["textDocument/definition"] = goto_definition('split')
+vim.lsp.handlers["textDocument/definition"] = goto_definition()
 vim.diagnostic.config({
   virtual_text = {
     source = "always", -- Or "if_many"
