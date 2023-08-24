@@ -86,7 +86,7 @@ require('lazy').setup({
 
       -- Useful status updates for LSP
       -- NOTE: `opts = {}` is the same as calling `require('fidget').setup({})`
-      { 'j-hui/fidget.nvim',       tag = 'legacy', opts = {} },
+      -- { 'j-hui/fidget.nvim',       tag = 'legacy', opts = {} },
 
       -- Additional lua configuration, makes nvim stuff amazing!
       'folke/neodev.nvim',
@@ -217,7 +217,7 @@ require('lazy').setup({
   --    Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
   --
   --    For additional information see: https://github.com/folke/lazy.nvim#-structuring-your-plugins
-  -- { import = 'custom.plugins' },
+  { import = 'custom.plugins' },
 }, {})
 
 -- [[ Setting options ]]
@@ -273,7 +273,8 @@ vim.keymap.set('n', 'j', "v:count == 0 ? 'gj' : 'j'", { expr = true, silent = tr
 
 -- copy current buffer path to "+
 -- vim.keymap.set('n', '<leader>yb', '<cmd>let @+ = ' .. expand('%') .. '<cr>', {expr = true})
-vim.keymap.set('n', '<leader>yb', '<cmd>let @+ = expand("%")<CR>', { desc = 'yank to plus register current relative path' })
+vim.keymap.set('n', '<leader>yb', '<cmd>let @+ = expand("%")<CR>',
+  { desc = 'yank to plus register current relative path' })
 
 -- [[ Highlight on yank ]]
 -- See `:help vim.highlight.on_yank()`
@@ -347,7 +348,7 @@ vim.api.nvim_create_autocmd({ "BufEnter", "BufNew", "BufWinEnter" }, {
     -- vim.wo.foldexpr = 'v:lua.vim.treesitter.foldexpr()'
     -- vim.wo.foldexpr = "v:lua.vim.treesitter.foldexpr()"
     vim.opt.foldexpr = "nvim_treesitter#foldexpr()"
-    vim.wo.foldenable =  false
+    vim.wo.foldenable = false
   end,
 })
 require('nvim-treesitter.configs').setup {
@@ -355,7 +356,7 @@ require('nvim-treesitter.configs').setup {
   ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'typescript', 'vimdoc', 'vim', 'javascript' },
 
   -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
-  auto_install = false,
+  auto_install = true,
 
   highlight = { enable = true },
   indent = { enable = true },
@@ -425,26 +426,29 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 local function goto_definition()
   local util = vim.lsp.util
   local log = require("vim.lsp.log")
-  local api = vim.api
+  -- local api = vim.api
 
   -- note, this handler style is for neovim 0.5.1/0.6, if on 0.5, call with function(_, method, result)
   local handler = function(_, result, ctx)
     if result == nil or vim.tbl_isempty(result) then
-      local _ = log.info() and log.info(ctx.method, "No location found")
+      print("nada", ctx.method, ctx.params)
       return nil
     end
 
     if vim.tbl_islist(result) then
-      util.jump_to_location(result[1], "utf-8", true)
-
+      vim.cmd('split')
       if #result > 1 then
-        vim.diagnostic.setqflist(util.locations_to_items(result, "utf-8"))
-        api.nvim_command("copen")
-        api.nvim_command("wincmd p")
+        -- vim.diagnostic.setqflist(util.locations_to_items(result, "utf-8"))
+        -- print(util.locations_to_items(result, "utf-8"))
+        print("mayor a 1", #result)
+        util.jump_to_location(result[2], "utf-8", false)
+      else
+        print(">= 1", #result)
+        util.jump_to_location(result[1], "utf-8", false)
       end
-    else
-      util.jump_to_location(result, "utf-8", true)
     end
+    print("default", #result)
+    -- util.jump_to_location(result[1], "utf-8", false)
   end
 
   return handler
@@ -607,6 +611,7 @@ cmp.setup {
   sources = {
     { name = 'nvim_lsp' },
     { name = 'luasnip' },
+    { name = "codeium" }
   },
 }
 
