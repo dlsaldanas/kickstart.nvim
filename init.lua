@@ -435,19 +435,19 @@ local function goto_definition()
       return nil
     end
 
-    if vim.tbl_islist(result) then
-      vim.cmd('split')
-      if #result > 1 then
-        -- vim.diagnostic.setqflist(util.locations_to_items(result, "utf-8"))
-        -- print(util.locations_to_items(result, "utf-8"))
-        print("mayor a 1", #result)
-        util.jump_to_location(result[2], "utf-8", false)
-      else
-        print(">= 1", #result)
-        util.jump_to_location(result[1], "utf-8", false)
-      end
+    -- if vim.tbl_islist(result) then
+    vim.cmd('split')
+    if #result > 1 then
+      -- vim.diagnostic.setqflist(util.locations_to_items(result, "utf-8"))
+      -- print(util.locations_to_items(result, "utf-8"))
+      print("mayor a 1", #result)
+      util.jump_to_location(result[1], "utf-8", false)
+    else
+      print(">= 1", #result)
+      util.jump_to_location(result[1], "utf-8", false)
     end
-    print("default", #result)
+    -- end
+    -- print("default", #result)
     -- util.jump_to_location(result[1], "utf-8", false)
   end
 
