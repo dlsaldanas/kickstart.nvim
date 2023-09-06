@@ -523,7 +523,7 @@ local servers = {
   -- rust_analyzer = {},
   tsserver = {},
   eslint = {},
-  rome = {},
+  biome = {},
   -- html = { filetypes = { 'html', 'twig', 'hbs'} },
 
   lua_ls = {
