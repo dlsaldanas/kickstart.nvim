@@ -291,6 +291,13 @@ vim.api.nvim_create_autocmd('TextYankPost', {
 local telescope = require("telescope")
 local telescopeConfig = require("telescope.config")
 
+vim.api.nvim_create_autocmd("User", {
+  pattern = "TelescopePreviewerLoaded",
+  callback = function()
+      vim.wo.wrap = true
+  end,
+})
+
 -- Clone the default Telescope configuration
 local vimgrep_arguments = { unpack(telescopeConfig.values.vimgrep_arguments) }
 
