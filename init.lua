@@ -422,6 +422,7 @@ vim.api.nvim_create_autocmd({ "BufEnter", "BufNew", "BufWinEnter" }, {
 -- See `:help nvim-treesitter`
 -- Defer Treesitter setup after first render to improve startup time of 'nvim {filename}'
 vim.defer_fn(function()
+---@diagnostic disable-next-line: missing-fields
   require('nvim-treesitter.configs').setup {
     -- Add languages to be installed here that you want installed for treesitter
     ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash' },
@@ -492,7 +493,6 @@ end, 0)
 local function goto_definition()
   local util = vim.lsp.util
   local log = require("vim.lsp.log")
-  -- local api = vim.api
 
   -- note, this handler style is for neovim 0.5.1/0.6, if on 0.5, call with function(_, method, result)
   local handler = function(_, result, ctx)
@@ -501,7 +501,6 @@ local function goto_definition()
       return nil
     end
 
-    -- if vim.tbl_islist(result) then
     vim.cmd('split')
     if #result > 1 then
       -- vim.diagnostic.setqflist(util.locations_to_items(result, "utf-8"))
