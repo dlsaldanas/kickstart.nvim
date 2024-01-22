@@ -586,28 +586,25 @@ local nvim_lsp = require('lspconfig')
 --  define the property 'filetypes' to the map in question.
 local servers = {
   tsserver = {
-    root_dir = nvim_lsp.util.root_pattern("package.json"),
     single_file_support = false
   },
-  eslint = {
-    root_dir = nvim_lsp.util.root_pattern("package.json"),
-  },
-  denols = {
-    root_dir = nvim_lsp.util.root_pattern("deno.json", "deno.jsonc", "deno.json5", "deno.json6", "deno.json7", "deno.json8", "deno.json9", "deno.json10"),
-    init_options = {
-      lint = true,
-      unstable = true,
-      suggest = {
-        imports = {
-          hosts = {
-            ["https://deno.land"] = true,
-            ["https://cdn.nest.land"] = true,
-            ["https://crux.land"] = true
-          }
-        }
-      }
-    }
-  },
+  eslint = {},
+  -- denols = {
+  --   root_dir = nvim_lsp.util.root_pattern("deno.json", "deno.jsonc", "deno.json5", "deno.json6", "deno.json7", "deno.json8", "deno.json9", "deno.json10"),
+  --   init_options = {
+  --     lint = true,
+  --     unstable = true,
+  --     suggest = {
+  --       imports = {
+  --         hosts = {
+  --           ["https://deno.land"] = true,
+  --           ["https://cdn.nest.land"] = true,
+  --           ["https://crux.land"] = true
+  --         }
+  --       }
+  --     }
+  --   }
+  -- },
   -- html = { filetypes = { 'html', 'twig', 'hbs'} },
 
   lua_ls = {
@@ -640,9 +637,9 @@ mason_lspconfig.setup_handlers {
       capabilities = capabilities,
       on_attach = on_attach,
       settings = servers[server_name],
-      filetypes = (servers[server_name] or {}).filetypes,
-      init_options = (servers[server_name] or {}).init_options,
-      root_dir = (servers[server_name] or {}).root_dir,
+      single_file_support = (servers[server_name] or {}).single_file_support,
+      -- init_options = (servers[server_name] or {}).init_options,
+      -- root_dir = (servers[server_name] or {}).root_dir,
     }
   end,
 }
