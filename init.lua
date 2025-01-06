@@ -198,7 +198,7 @@ require('lazy').setup({
         -- set icon mappings to true if you have a Nerd Font
         mappings = vim.g.have_nerd_font,
         -- If you are using a Nerd Font: set icons.keys to an empty table which will use the
-        -- default whick-key.nvim defined Nerd Font icons, otherwise define a string table
+        -- default which-key.nvim defined Nerd Font icons, otherwise define a string table
         keys = vim.g.have_nerd_font and {} or {
           Up = '<Up> ',
           Down = '<Down> ',
@@ -473,6 +473,23 @@ require('lazy').setup({
                 vim.api.nvim_clear_autocmds { group = 'kickstart-lsp-highlight', buffer = event2.buf }
               end,
             })
+            -- https://dev.to/_hariti/solve-nvim-lsp-denols-vs-tsserver-clash-ofd
+            local active_clients = vim.lsp.get_clients()
+            if client.name == 'denols' then
+              for _, client_ in pairs(active_clients) do
+                -- stop tsserver if denols is already active
+                if client_.name == 'vtsls' then
+                  client_.stop()
+                end
+              end
+            elseif client.name == 'vtsls' then
+              for _, client_ in pairs(active_clients) do
+                -- prevent tsserver from starting if denols is already active
+                if client_.name == 'denols' then
+                  client.stop()
+                end
+              end
+            end
           end
 
           -- The following code creates a keymap to toggle inlay hints in your
@@ -486,6 +503,16 @@ require('lazy').setup({
           end
         end,
       })
+
+      -- Change diagnostic symbols in the sign column (gutter)
+      -- if vim.g.have_nerd_font then
+      --   local signs = { ERROR = '', WARN = '', INFO = '', HINT = '' }
+      --   local diagnostic_signs = {}
+      --   for type, icon in pairs(signs) do
+      --     diagnostic_signs[vim.diagnostic.severity[type]] = icon
+      --   end
+      --   vim.diagnostic.config { signs = { text = diagnostic_signs } }
+      -- end
 
       -- LSP servers and clients are able to communicate to each other what features they support.
       --  By default, Neovim doesn't support everything that is in the LSP specification.
@@ -503,6 +530,8 @@ require('lazy').setup({
       --  - capabilities (table): Override fields in capabilities. Can be used to disable certain LSP features.
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
+      local lspconfig = require 'lspconfig'
+
       local servers = {
         clangd = {},
         -- gopls = {},
@@ -519,9 +548,24 @@ require('lazy').setup({
         cssls = {},
         -- eslint = {},
         bashls = {},
-        vtsls = {},
+        denols = {
+          root_dir = lspconfig.util.root_pattern 'deno.json',
+          init_options = {
+            lint = true,
+          },
+        },
+        vtsls = {
+          init_options = {
+            hostInfo = 'neovim',
+          },
+          root_dir = lspconfig.util.root_pattern('package.json', 'tsconfig.json', '.git'),
+          capabilities = {
+            document_formatting = false,
+            document_range_formatting = false,
+          },
+        },
         -- But for many setups, the LSP (`ts_ls`) will work just fine
-        -- ts_ls = https://github.com/pmizio/typescript-tools.nvim{
+        -- ts_ls = {
         --   settings = {
         --     typescript = {
         --       suggest = {
@@ -553,7 +597,7 @@ require('lazy').setup({
                 callSnippet = 'Replace',
               },
               -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
-              -- diagnostics = { disable = { 'missing-fields' } },
+              diagnostics = { disable = { 'missing-fields' }, globals = { 'vim' } },
             },
           },
         },
@@ -582,6 +626,11 @@ require('lazy').setup({
             -- This handles overriding only values explicitly passed
             -- by the server configuration above. Useful when disabling
             -- certain features of an LSP (for example, turning off formatting for ts_ls)
+
+            if server_name == 'vtsls' then
+              server.capabilities.document_formatting = false
+              server.capabilities.document_range_formatting = false
+            end
             server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
             require('lspconfig')[server_name].setup(server)
           end,
@@ -610,7 +659,7 @@ require('lazy').setup({
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
         -- languages here or re-enable it for the disabled ones.
-        local disable_filetypes = { c = true, cpp = true, javascript = true, typescript = true }
+        local disable_filetypes = { c = true, cpp = true, javascript = true, typescript = true, typescriptreact = true, javascriptreact = true }
         local lsp_format_opt
         if disable_filetypes[vim.bo[bufnr].filetype] then
           lsp_format_opt = 'never'
@@ -834,7 +883,7 @@ require('lazy').setup({
     --    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
   },
 
-  -- The following two comments only work if you have downloaded the kickstart repo, not just copy pasted the
+  -- The following comments only work if you have downloaded the kickstart repo, not just copy pasted the
   -- init.lua. If you want these files, they are in the repository, so you can just download them and
   -- place them in the correct locations.
 
@@ -857,6 +906,11 @@ require('lazy').setup({
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
   --    For additional information, see `:help lazy.nvim-lazy.nvim-structuring-your-plugins`
   { import = 'custom.plugins' },
+  --
+  -- For additional information with loading, sourcing and examples see `:help lazy.nvim-🔌-plugin-spec`
+  -- Or use telescope!
+  -- In normal mode type `<space>sh` then write `lazy.nvim-plugin`
+  -- you can continue same window with `<space>sr` which resumes last telescope search
 }, {
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the

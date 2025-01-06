@@ -4,6 +4,10 @@ return {
   opts = {},
   config = function()
     require('typescript-tools').setup {
+      -- on_attach = function(client, bufnr)
+      --   client.server_capabilities.documentFormattingProvider = false
+      --   client.server_capabilities.documentRangeFormattingProvider = false
+      -- end,
       jsx_close_tag = {
         enable = true,
         filetypes = { 'javascriptreact', 'typescriptreact' },
