@@ -1,5 +1,5 @@
 -- autopairs
--- https://github.com/windwp/nvim-autopair}
+-- https://github.com/windwp/nvim-autopairs
 
 return {
   'windwp/nvim-autopairs',

@@ -27,12 +27,7 @@ vim.wo.foldenable = false
 vim.keymap.set('n', '<leader>yb', '<cmd>let @+ = expand("%")<CR>', { desc = 'yank to plus register current relative path' })
 
 vim.diagnostic.config {
-  virtual_text = {
-    source = true,
-  },
-  float = {
-    source = true,
-  },
+  virtual_text = false,
 }
 
 return {}
