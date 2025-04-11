@@ -13,34 +13,73 @@ if &shortmess =~ 'A'
 else
   set shortmess=aoO
 endif
-badd +237 init.lua
-badd +467 health://
-badd +1 lua/custom/plugins/init.lua
-badd +4 lua/kickstart/plugins/autopairs.lua
-badd +46 lua/kickstart/plugins/debug.lua
-badd +9 lua/kickstart/plugins/lint.lua
-badd +1 lua/kickstart/plugins/indent_line.lua
-badd +14 lua/kickstart/plugins/neo-tree.lua
+badd +29 lua/custom/plugins/init.lua
+badd +940 init.lua
+badd +86 ~/.local/share/nvim/lazy/telescope.nvim/lua/telescope/builtin/init.lua
+badd +45 lua/custom/plugins/floatTerminal.lua
+badd +1 lua/custom/plugins/floaterminal.lua
 argglobal
 %argdel
-$argadd init.lua
-edit lua/kickstart/plugins/neo-tree.lua
+edit lua/custom/plugins/floaterminal.lua
+let s:save_splitbelow = &splitbelow
+let s:save_splitright = &splitright
+set splitbelow splitright
+wincmd _ | wincmd |
+vsplit
+1wincmd h
+wincmd w
+let &splitbelow = s:save_splitbelow
+let &splitright = s:save_splitright
+wincmd t
+let s:save_winminheight = &winminheight
+let s:save_winminwidth = &winminwidth
+set winminheight=0
+set winheight=1
+set winminwidth=0
+set winwidth=1
+exe 'vert 1resize ' . ((&columns * 77 + 77) / 155)
+exe 'vert 2resize ' . ((&columns * 77 + 77) / 155)
 argglobal
-setlocal fdm=expr
-setlocal fde=v:lua.vim.treesitter.foldexpr()
-setlocal fmr={{{,}}}
-setlocal fdi=#
-setlocal fdl=0
-setlocal fml=1
-setlocal fdn=20
-setlocal nofen
-let s:l = 14 - ((13 * winheight(0) + 28) / 56)
+balt init.lua
+setlocal foldmethod=expr
+setlocal foldexpr=v:lua.vim.treesitter.foldexpr()
+setlocal foldmarker={{{,}}}
+setlocal foldignore=#
+setlocal foldlevel=0
+setlocal foldminlines=1
+setlocal foldnestmax=20
+setlocal nofoldenable
+let s:l = 1 - ((0 * winheight(0) + 22) / 45)
 if s:l < 1 | let s:l = 1 | endif
 keepjumps exe s:l
 normal! zt
-keepjumps 14
-normal! 025|
-lcd ~/.config/nvim
+keepjumps 1
+normal! 0
+wincmd w
+argglobal
+if bufexists(fnamemodify("lua/custom/plugins/init.lua", ":p")) | buffer lua/custom/plugins/init.lua | else | edit lua/custom/plugins/init.lua | endif
+if &buftype ==# 'terminal'
+  silent file lua/custom/plugins/init.lua
+endif
+balt lua/custom/plugins/floaterminal.lua
+setlocal foldmethod=expr
+setlocal foldexpr=v:lua.vim.treesitter.foldexpr()
+setlocal foldmarker={{{,}}}
+setlocal foldignore=#
+setlocal foldlevel=0
+setlocal foldminlines=1
+setlocal foldnestmax=20
+setlocal nofoldenable
+let s:l = 29 - ((28 * winheight(0) + 22) / 45)
+if s:l < 1 | let s:l = 1 | endif
+keepjumps exe s:l
+normal! zt
+keepjumps 29
+normal! 0
+wincmd w
+2wincmd w
+exe 'vert 1resize ' . ((&columns * 77 + 77) / 155)
+exe 'vert 2resize ' . ((&columns * 77 + 77) / 155)
 tabnext 1
 if exists('s:wipebuf') && len(win_findbuf(s:wipebuf)) == 0 && getbufvar(s:wipebuf, '&buftype') isnot# 'terminal'
   silent exe 'bwipe ' . s:wipebuf
@@ -48,6 +87,8 @@ endif
 unlet! s:wipebuf
 set winheight=1 winwidth=20
 let &shortmess = s:shortmess_save
+let &winminheight = s:save_winminheight
+let &winminwidth = s:save_winminwidth
 let s:sx = expand("<sfile>:p:r")."x.vim"
 if filereadable(s:sx)
   exe "source " . fnameescape(s:sx)
