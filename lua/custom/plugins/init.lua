@@ -26,6 +26,10 @@ vim.wo.foldenable = false
 -- copy current buffer path to "+
 vim.keymap.set('n', '<leader>yb', '<cmd>let @+ = expand("%")<CR>', { desc = 'yank to plus register current relative path' })
 
+-- https://devpad.net/blog/upgrading-nvim-v010-to-v011
+im.opt.completeopt = { 'menuone', 'fuzzy', 'noinsert', 'preview' }
+vim.o.omnifunc = 'v:lua.vim.lsp.omnifunc'
+
 -- vim.diagnostic.config {
 --   virtual_text = false,
 -- }

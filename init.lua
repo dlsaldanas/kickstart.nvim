@@ -283,20 +283,10 @@ require('lazy').setup({
       -- See `:help telescope` and `:help telescope.setup()`
       require('telescope').setup {
         -- You can put your default mappings / updates / etc. in here
-        --  All the info you're looking for is in `:help telescope.setup()`
-        --
         defaults = {
           file_ignore_patterns = {
             '^.git/',
             '^node_modules/',
-          },
-          find_command = {
-            'fd', -- Usa 'fd' en lugar de 'find'
-            '--type',
-            'f',
-            '--hidden', -- Incluye archivos ocultos
-            '--exclude',
-            '.git',
           },
           vimgrep_arguments = {
             'rg',
@@ -311,7 +301,12 @@ require('lazy').setup({
             '!.git/', -- Excluye .git pero no .gitlab
           },
         },
-        -- pickers = {}
+        -- show hidden files, does it respect config for whatever command is using?
+        pickers = {
+          find_files = {
+            hidden = true,
+          },
+        },
         extensions = {
           ['ui-select'] = {
             require('telescope.themes').get_dropdown(),
@@ -378,6 +373,7 @@ require('lazy').setup({
   {
     -- Main LSP Configuration
     'neovim/nvim-lspconfig',
+    enabled = false,
     dependencies = {
       -- Automatically install LSPs and related tools to stdpath for Neovim
       -- Mason must be loaded before its dependents so we need to set it up here.
@@ -392,14 +388,14 @@ require('lazy').setup({
       -- Allows extra capabilities provided by blink.cmp
       'saghen/blink.cmp',
     },
+    opts = {
+      inlay_hints = { enabled = false },
+      diagnostics = {
+        virtual_text = false,
+        signs = false,
+      },
+    },
     config = function()
-      -- LSP provides Neovim with features like:
-      --  - Go to definition
-      --  - Find references
-      --  - Autocompletion
-      --  - Symbol Search
-      --  - and more!
-      --
       -- Thus, Language Servers are external tools that must be installed separately from
       -- Neovim. This is where `mason` and related plugins come into play.
       --
@@ -410,9 +406,6 @@ require('lazy').setup({
       vim.api.nvim_create_autocmd('LspAttach', {
         group = vim.api.nvim_create_augroup('kickstart-lsp-attach', { clear = true }),
         callback = function(event)
-          -- NOTE: Remember that Lua is a real programming language, and as such it is possible
-          -- to define small helper and utility functions so you don't have to repeat yourself.
-          --
           -- In this case, we create a function that lets us more easily define mappings specific
           -- for LSP related items. It sets the mode, buffer and description for us each time.
           local map = function(keys, func, desc, mode)
@@ -432,7 +425,6 @@ require('lazy').setup({
           map('grr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
 
           -- Jump to the implementation of the word under your cursor.
-          --  Useful when your language has ways of declaring types without an actual implementation.
           map('gri', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')
 
           -- Jump to the definition of the word under your cursor.
@@ -497,23 +489,6 @@ require('lazy').setup({
                 vim.api.nvim_clear_autocmds { group = 'kickstart-lsp-highlight', buffer = event2.buf }
               end,
             })
-            -- https://dev.to/_hariti/solve-nvim-lsp-denols-vs-tsserver-clash-ofd
-            local active_clients = vim.lsp.get_clients()
-            -- if client.name == 'denols' then
-            --   for _, client_ in pairs(active_clients) do
-            --     -- stop tsserver if denols is already active
-            --     if client_.name == 'vtsls' then
-            --       client_.stop()
-            --     end
-            --   end
-            -- elseif client.name == 'vtsls' then
-            --   for _, client_ in pairs(active_clients) do
-            --     -- prevent tsserver from starting if denols is already active
-            --     if client_.name == 'denols' then
-            --       client.stop()
-            --     end
-            --   end
-            -- end
           end
 
           -- The following code creates a keymap to toggle inlay hints in your
@@ -561,7 +536,6 @@ require('lazy').setup({
       --  By default, Neovim doesn't support everything that is in the LSP specification.
       --  When you add nvim-cmp, luasnip, etc. Neovim now has *more* capabilities.
       --  So, we create new capabilities with nvim cmp, and then broadcast that to the servers.
-      local capabilities = vim.lsp.protocol.make_client_capabilities()
 
       -- Enable the following language servers
       --  Add any additional override configuration in the following tables. Available keys are:
@@ -570,39 +544,43 @@ require('lazy').setup({
       --  - capabilities (table): Override fields in capabilities. Can be used to disable certain LSP features.
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
-      local lspconfig = require 'lspconfig'
-      local util = require 'lspconfig/util'
 
-      local function is_deno_project(fname)
-        -- return util.root_pattern('deno.json', 'deno.jsonc')(fname) ~= nil
-        local deno_files = { 'deno.json', 'deno.jsonc', 'deno.lock' }
+      vim.lsp.config.denols = {
+        cmd = { 'deno', 'lsp' },
+        filetypes = { 'javascript', 'javascriptreact', 'javascript.jsx', 'typescript', 'typescriptreact', 'typescript.tsx' },
+        root_dir = function(_, callback)
+          local root_dir = vim.fs.root(0, { 'deno.json', 'deno.jsonc' })
 
-        for _, filepath in ipairs(deno_files) do
-          filepath = table.concat({ vim.fn.getcwd(), filepath }, '/')
-          print(filepath)
-
-          if vim.uv.fs_stat(filepath) ~= nil then
-            print 'a'
-            return true
+          if root_dir then
+            callback(root_dir)
           end
-        end
+        end,
+      }
 
-        print 'b'
-        return false
-      end
+      vim.lsp.enable { 'denols' }
+
+      vim.lsp.config.vtsls = {
+        cmd = { 'typescript-language-server', '--stdio' },
+        filetypes = { 'javascript', 'javascriptreact', 'javascript.jsx', 'typescript', 'typescriptreact', 'typescript.tsx' },
+        root_dir = function(_, callback)
+          local deno_dir = vim.fs.root(0, { 'deno.json', 'deno.jsonc' })
+          local root_dir = vim.fs.root(0, { 'tsconfig.json', 'jsconfig.json', 'package.json' })
+
+          if root_dir and deno_dir == nil then
+            callback(root_dir)
+          end
+        end,
+        settings = {
+          hint = {
+            enable = true,
+          },
+        },
+      }
+      vim.lsp.enable { 'vtsls' }
 
       local servers = {
         clangd = {},
-        -- gopls = {},
-        -- pyright = {},
-        -- rust_analyzer = {},
-        -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
-        --
-        -- Some languages (like typescript) have entire language plugins that can be useful:
-        --    https://github.com/pmizio/typescript-tools.nvim
-        --
         helm_ls = {},
-        -- emmet_ls = {},
         jsonls = {
           init_options = {
             provideFormatter = true,
@@ -610,68 +588,9 @@ require('lazy').setup({
         },
         cssls = {},
         cssmodules_ls = {},
-        eslint = {
-          enable = not is_deno_project(),
-        },
+        eslint = {},
         bashls = {},
-        denols = {
-          deno = {
-            enable = function()
-              print('d', is_deno_project())
-              return is_deno_project()
-            end,
-          },
-
-          root_dir = function(fname)
-            -- Solo activar denols si hay un deno.json en el directorio raíz
-            print(lspconfig.util.root_pattern 'deno.json'(fname))
-            return lspconfig.util.root_pattern 'deno.json'(fname)
-          end,
-          init_options = {
-            lint = true,
-          },
-        },
-        vtsls = {
-          enable = not is_deno_project(),
-          init_options = {
-            hostInfo = 'neovim',
-          },
-          -- root_dir = lspconfig.util.root_pattern('package.json', 'tsconfig.json', '.git'),
-          -- nvim_lsp.vtsls.setup({
-          root_dir = function(fname)
-            -- Solo activar vtsls si NO estamos en un proyecto Deno
-            if is_deno_project(fname) then
-              print 'aaaaa'
-              return nil
-            end
-            return util.root_pattern('package.json', 'tsconfig.json', 'jsconfig.json', '.git')(fname)
-          end,
-          capabilities = {
-            document_formatting = false,
-            document_range_formatting = false,
-          },
-        },
-        -- But for many setups, the LSP (`ts_ls`) will work just fine
-        -- ts_ls = {
-        --   settings = {
-        --     typescript = {
-        --       suggest = {
-        --         completeFunctionCalls = true,
-        --       },
-        --       inlayHints = {
-        --         includeInlayParameterNameHints = 'all', -- 'none' | 'literals' | 'all'
-        --         includeInlayParameterNameHintsWhenArgumentMatchesName = true,
-        --         includeInlayVariableTypeHints = true,
-        --         includeInlayFunctionParameterTypeHints = true,
-        --         includeInlayVariableTypeHintsWhenTypeMatchesName = true,
-        --         includeInlayPropertyDeclarationTypeHints = true,
-        --         includeInlayFunctionLikeReturnTypeHints = true,
-        --         includeInlayEnumMemberValueHints = true,
-        --       },
-        --     },
-        --   },
-        -- },
-        --
+        vtsls = {},
         nginx_language_server = {},
 
         lua_ls = {
@@ -692,7 +611,6 @@ require('lazy').setup({
 
       -- Ensure the servers and tools above are installed
       -- You can add other tools here that you want Mason to install
-      -- for you, so that they are available from within Neovim.
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
         'stylua', -- Used to format Lua code
@@ -700,48 +618,14 @@ require('lazy').setup({
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
       require('mason-lspconfig').setup {
-        ensure_installed = {}, -- explicitly set to an empty table (Kickstart populates installs via mason-tool-installer)
-        automatic_installation = false,
-        handlers = {
-          function(server_name)
-            local server = servers[server_name] or {}
-            -- This handles overriding only values explicitly passed
-            -- by the server configuration above. Useful when disabling
-            -- certain features of an LSP (for example, turning off formatting for ts_ls)
-
-            --    https://cmp.saghen.dev/installation#merging-lsp-capabilities
-
-            capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
-
-            server.capabilities = require('blink.cmp').get_lsp_capabilities(capabilities)
-
-            require('lspconfig')[server_name].setup(server)
-          end,
+        -- https://github.com/mason-org/mason-lspconfig.nvim/tree/main
+        automatic_enable = {
+          exclude = {
+            'ts_ls',
+          },
         },
+        ensure_installed = {}, -- explicitly set to an empty table (Kickstart populates installs via mason-tool-installer)
       }
-      -- vim.api.nvim_create_autocmd('FileType', {
-      --   pattern = { 'typescript', 'javascript', 'javascriptreact', 'typescriptreact' },
-      --   callback = function(event)
-      --     -- Obtener la ruta completa del archivo actual
-      --     local fname = vim.api.nvim_buf_get_name(event.buf)
-      --
-      --     -- Determinar si estamos en un proyecto Deno
-      --     local is_deno = is_deno_project(fname)
-      --
-      --     -- Desactivar explícitamente el servidor que no corresponde
-      --     if is_deno then
-      --       -- Estamos en un proyecto Deno, desactivar vtsls para este buffer
-      --       vim.schedule(function()
-      --         vim.cmd 'LspStop vtsls'
-      --       end)
-      --     else
-      --       -- No estamos en un proyecto Deno, desactivar denols para este buffer
-      --       vim.schedule(function()
-      --         vim.cmd 'LspStop denols'
-      --       end)
-      --     end
-      --   end,
-      -- })
     end,
   },
 
@@ -764,7 +648,6 @@ require('lazy').setup({
       format_on_save = function(bufnr)
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
-        -- languages here or re-enable it for the disabled ones.
         local disable_filetypes = { c = true, cpp = true, javascript = true, typescript = true, typescriptreact = true, javascriptreact = true, json = true }
         if disable_filetypes[vim.bo[bufnr].filetype] then
           return nil
@@ -826,7 +709,6 @@ require('lazy').setup({
     opts = {
       keymap = {
         -- 'default' (recommended) for mappings similar to built-in completions
-        --   <c-y> to accept ([y]es) the completion.
         --    This will auto-import if your LSP supports it.
         --    This will expand snippets if the LSP sent a snippet.
         -- 'super-tab' for tab to accept
@@ -867,64 +749,19 @@ require('lazy').setup({
 
       sources = {
         default = {
-          -- 'lazydev',
-          -- 'avante',
-          'lsp',
+          -- 'lsp',
           'path',
-          -- 'snippets',
-          -- 'snippets',
-          -- 'avante_commands',
-          -- 'avante_mentions',
-          -- 'avante_files',
         },
-
-        -- estos campos no existen dentro de sources
-        --   compat = {
-        --   "avante_commands",
-        --   "avante_mentions",
-        --   "avante_files",
-        --   },
-        --   selector = {
-        --   ---@param selector avante.ui.Selector
-        --   provider = function(selector)
-        --     local items = selector.items ---@type avante.ui.SelectorItem[]
-        --     local title = selector.title ---@type string
-        --     local on_select = selector.on_select ---@type fun(selected_item_ids: string[]|nil): nil
-        --
-        --     --- your customized picker logic here
-        --   end,
-        -- },
-        -- default = { 'lsp', 'path', 'snippets', 'lazydev' },
         providers = {
           lazydev = { module = 'lazydev.integrations.blink', score_offset = 100, name = 'LazyDev' },
           lsp = { name = 'lsp' },
           path = { name = 'path' },
           snippets = { name = 'snippets' },
-          -- avante = {
-          --   module = 'blink-cmp-avante',
-          --   name = 'Avante',
-          --   opts = {
-          --     completion = {
-          --       enabled = true,
-          --       trigger_characters = { '.', ':', '@' }, -- Caracteres que activarán el autocompletado
-          --     },
-          --     max_suggestions = 5, -- Número máximo de sugerencias a mostrar
-          --     debounce_ms = 300, -- Tiempo de espera antes de solicitar sugerencias
-          --     show_docs = true,
-          --     -- options for blink-cmp-avante
-          --   },
-          -- },
         },
       },
 
       snippets = { preset = 'luasnip' },
 
-      -- Blink.cmp includes an optional, recommended rust fuzzy matcher,
-      -- which automatically downloads a prebuilt binary when enabled.
-      --
-      -- By default, we use the Lua implementation instead, but you may enable
-      -- the rust implementation via `'prefer_rust_with_warning'`
-      --
       -- See :h blink-cmp-config-fuzzy for more information
       fuzzy = { implementation = 'lua' },
 
@@ -934,7 +771,7 @@ require('lazy').setup({
     opts_extend = { 'sources.default' },
   },
 
-  { -- You can easily change to a different colorscheme.
+  {
     -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`.
     'folke/tokyonight.nvim',
     priority = 1000, -- Make sure to load this before all the other start plugins.
@@ -972,10 +809,7 @@ require('lazy').setup({
       require('mini.surround').setup()
 
       -- Simple and easy statusline.
-      --  You could remove this setup call if you don't like it,
-      --  and try some other statusline plugin
       local statusline = require 'mini.statusline'
-      -- set use_icons to true if you have a Nerd Font
       statusline.setup { use_icons = vim.g.have_nerd_font }
 
       -- You can configure sections in the statusline by overriding their
@@ -1003,21 +837,12 @@ require('lazy').setup({
         enable = true,
         -- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
         --  If you are experiencing weird indenting issues, add the language to
-        --  the list of additional_vim_regex_highlighting and disabled languages for indent.
         additional_vim_regex_highlighting = { 'ruby' },
       },
       indent = { enable = true, disable = { 'ruby' } },
     },
-    -- There are additional nvim-treesitter modules that you can use to interact
-    -- with nvim-treesitter. You should go explore a few and see what interests you:
-    --
-    --    - Incremental selection: Included, see `:help nvim-treesitter-incremental-selection-mod`
-    --    - Show your current context: https://github.com/nvim-treesitter/nvim-treesitter-context
-    --    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
   },
 
-  -- NOTE: Next step on your Neovim journey: Add/Configure additional plugins for Kickstart
-  --
   -- require 'kickstart.plugins.debug',
   require 'kickstart.plugins.indent_line',
   -- require 'kickstart.plugins.lint',
@@ -1027,12 +852,7 @@ require('lazy').setup({
   -- require 'kickstart.plugins.typescript-tools', -- adds gitsigns recommend keymaps
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
-  --    This is the easiest way to modularize your config.
   { import = 'custom.plugins' },
-  -- For additional information with loading, sourcing and examples see `:help lazy.nvim-🔌-plugin-spec`
-  -- Or use telescope!
-  -- In normal mode type `<space>sh` then write `lazy.nvim-plugin`
-  -- you can continue same window with `<space>sr` which resumes last telescope search
 }, {
   ui = {
     icons = vim.g.have_nerd_font and {} or {
