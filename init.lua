@@ -499,21 +499,21 @@ require('lazy').setup({
             })
             -- https://dev.to/_hariti/solve-nvim-lsp-denols-vs-tsserver-clash-ofd
             local active_clients = vim.lsp.get_clients()
-            if client.name == 'denols' then
-              for _, client_ in pairs(active_clients) do
-                -- stop tsserver if denols is already active
-                if client_.name == 'vtsls' then
-                  client_.stop()
-                end
-              end
-            elseif client.name == 'vtsls' then
-              for _, client_ in pairs(active_clients) do
-                -- prevent tsserver from starting if denols is already active
-                if client_.name == 'denols' then
-                  client.stop()
-                end
-              end
-            end
+            -- if client.name == 'denols' then
+            --   for _, client_ in pairs(active_clients) do
+            --     -- stop tsserver if denols is already active
+            --     if client_.name == 'vtsls' then
+            --       client_.stop()
+            --     end
+            --   end
+            -- elseif client.name == 'vtsls' then
+            --   for _, client_ in pairs(active_clients) do
+            --     -- prevent tsserver from starting if denols is already active
+            --     if client_.name == 'denols' then
+            --       client.stop()
+            --     end
+            --   end
+            -- end
           end
 
           -- The following code creates a keymap to toggle inlay hints in your
@@ -559,9 +559,9 @@ require('lazy').setup({
 
       -- LSP servers and clients are able to communicate to each other what features they support.
       --  By default, Neovim doesn't support everything that is in the LSP specification.
-      --  When you add blink.cmp, luasnip, etc. Neovim now has *more* capabilities.
-      --  So, we create new capabilities with blink.cmp, and then broadcast that to the servers.
-      local capabilities = require('blink.cmp').get_lsp_capabilities()
+      --  When you add nvim-cmp, luasnip, etc. Neovim now has *more* capabilities.
+      --  So, we create new capabilities with nvim cmp, and then broadcast that to the servers.
+      local capabilities = vim.lsp.protocol.make_client_capabilities()
 
       -- Enable the following language servers
       --  Add any additional override configuration in the following tables. Available keys are:
@@ -571,11 +571,30 @@ require('lazy').setup({
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
       local lspconfig = require 'lspconfig'
+      local util = require 'lspconfig/util'
+
+      local function is_deno_project(fname)
+        -- return util.root_pattern('deno.json', 'deno.jsonc')(fname) ~= nil
+        local deno_files = { 'deno.json', 'deno.jsonc', 'deno.lock' }
+
+        for _, filepath in ipairs(deno_files) do
+          filepath = table.concat({ vim.fn.getcwd(), filepath }, '/')
+          print(filepath)
+
+          if vim.uv.fs_stat(filepath) ~= nil then
+            print 'a'
+            return true
+          end
+        end
+
+        print 'b'
+        return false
+      end
 
       local servers = {
         clangd = {},
         -- gopls = {},
-        pyright = {},
+        -- pyright = {},
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
@@ -591,19 +610,42 @@ require('lazy').setup({
         },
         cssls = {},
         cssmodules_ls = {},
-        eslint = {},
+        eslint = {
+          enable = not is_deno_project(),
+        },
         bashls = {},
         denols = {
-          root_dir = lspconfig.util.root_pattern 'deno.json',
+          deno = {
+            enable = function()
+              print('d', is_deno_project())
+              return is_deno_project()
+            end,
+          },
+
+          root_dir = function(fname)
+            -- Solo activar denols si hay un deno.json en el directorio raíz
+            print(lspconfig.util.root_pattern 'deno.json'(fname))
+            return lspconfig.util.root_pattern 'deno.json'(fname)
+          end,
           init_options = {
             lint = true,
           },
         },
         vtsls = {
+          enable = not is_deno_project(),
           init_options = {
             hostInfo = 'neovim',
           },
-          root_dir = lspconfig.util.root_pattern('package.json', 'tsconfig.json', '.git'),
+          -- root_dir = lspconfig.util.root_pattern('package.json', 'tsconfig.json', '.git'),
+          -- nvim_lsp.vtsls.setup({
+          root_dir = function(fname)
+            -- Solo activar vtsls si NO estamos en un proyecto Deno
+            if is_deno_project(fname) then
+              print 'aaaaa'
+              return nil
+            end
+            return util.root_pattern('package.json', 'tsconfig.json', 'jsconfig.json', '.git')(fname)
+          end,
           capabilities = {
             document_formatting = false,
             document_range_formatting = false,
@@ -667,15 +709,39 @@ require('lazy').setup({
             -- by the server configuration above. Useful when disabling
             -- certain features of an LSP (for example, turning off formatting for ts_ls)
 
-            -- if server_name == 'vtsls' then
-            --   server.capabilities.document_formatting = false
-            --   server.capabilities.document_range_formatting = false
-            -- end
-            server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
+            --    https://cmp.saghen.dev/installation#merging-lsp-capabilities
+
+            capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
+
+            server.capabilities = require('blink.cmp').get_lsp_capabilities(capabilities)
+
             require('lspconfig')[server_name].setup(server)
           end,
         },
       }
+      -- vim.api.nvim_create_autocmd('FileType', {
+      --   pattern = { 'typescript', 'javascript', 'javascriptreact', 'typescriptreact' },
+      --   callback = function(event)
+      --     -- Obtener la ruta completa del archivo actual
+      --     local fname = vim.api.nvim_buf_get_name(event.buf)
+      --
+      --     -- Determinar si estamos en un proyecto Deno
+      --     local is_deno = is_deno_project(fname)
+      --
+      --     -- Desactivar explícitamente el servidor que no corresponde
+      --     if is_deno then
+      --       -- Estamos en un proyecto Deno, desactivar vtsls para este buffer
+      --       vim.schedule(function()
+      --         vim.cmd 'LspStop vtsls'
+      --       end)
+      --     else
+      --       -- No estamos en un proyecto Deno, desactivar denols para este buffer
+      --       vim.schedule(function()
+      --         vim.cmd 'LspStop denols'
+      --       end)
+      --     end
+      --   end,
+      -- })
     end,
   },
 
@@ -752,6 +818,8 @@ require('lazy').setup({
         opts = {},
       },
       'folke/lazydev.nvim',
+      -- -- avante
+      -- 'Kaiser-Yang/blink-cmp-avante',
     },
     --- @module 'blink.cmp'
     --- @type blink.cmp.Config
@@ -793,13 +861,59 @@ require('lazy').setup({
       completion = {
         -- By default, you may press `<c-space>` to show the documentation.
         -- Optionally, set `auto_show = true` to show the documentation after a delay.
-        documentation = { auto_show = false, auto_show_delay_ms = 500 },
+        documentation = { auto_show = true, auto_show_delay_ms = 500 },
+        keyword = { range = 'full' },
       },
 
       sources = {
-        default = { 'lsp', 'path', 'snippets', 'lazydev' },
+        default = {
+          -- 'lazydev',
+          -- 'avante',
+          'lsp',
+          'path',
+          -- 'snippets',
+          -- 'snippets',
+          -- 'avante_commands',
+          -- 'avante_mentions',
+          -- 'avante_files',
+        },
+
+        -- estos campos no existen dentro de sources
+        --   compat = {
+        --   "avante_commands",
+        --   "avante_mentions",
+        --   "avante_files",
+        --   },
+        --   selector = {
+        --   ---@param selector avante.ui.Selector
+        --   provider = function(selector)
+        --     local items = selector.items ---@type avante.ui.SelectorItem[]
+        --     local title = selector.title ---@type string
+        --     local on_select = selector.on_select ---@type fun(selected_item_ids: string[]|nil): nil
+        --
+        --     --- your customized picker logic here
+        --   end,
+        -- },
+        -- default = { 'lsp', 'path', 'snippets', 'lazydev' },
         providers = {
-          lazydev = { module = 'lazydev.integrations.blink', score_offset = 100 },
+          lazydev = { module = 'lazydev.integrations.blink', score_offset = 100, name = 'LazyDev' },
+          lsp = { name = 'lsp' },
+          path = { name = 'path' },
+          snippets = { name = 'snippets' },
+          -- avante = {
+          --   module = 'blink-cmp-avante',
+          --   name = 'Avante',
+          --   opts = {
+          --     completion = {
+          --       enabled = true,
+          --       trigger_characters = { '.', ':', '@' }, -- Caracteres que activarán el autocompletado
+          --     },
+          --     max_suggestions = 5, -- Número máximo de sugerencias a mostrar
+          --     debounce_ms = 300, -- Tiempo de espera antes de solicitar sugerencias
+          --     show_docs = true,
+          --     -- options for blink-cmp-avante
+          --   },
+          -- },
         },
       },
 
@@ -817,6 +931,7 @@ require('lazy').setup({
       -- Shows a signature help window while you type arguments for a function
       signature = { enabled = true },
     },
+    opts_extend = { 'sources.default' },
   },
 
   { -- You can easily change to a different colorscheme.
