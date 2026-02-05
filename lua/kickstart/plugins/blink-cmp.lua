@@ -63,7 +63,9 @@ return {
         },
       },
       snippets = { preset = 'luasnip' },
-      fuzzy = { implementation = 'lua' },
+      fuzzy = {
+        implementation = 'lua',
+      },
       signature = { enabled = true },
     },
   },

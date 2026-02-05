@@ -124,6 +124,7 @@ return {
       local servers = {
         biome = {},
         clangd = {},
+        nginx_language_server = {},
         -- this is extracted from vscode i cant find a way to deactivete the format on save
         -- jsonls = {
         --   capabilities = {
@@ -166,7 +167,6 @@ return {
         'cssls',
         'bashls',
         'gitlab_ci_ls',
-        'nginx_language_server',
       })
 
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
